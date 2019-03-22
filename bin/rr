@@ -1,0 +1,2 @@
+#!/bin/bash
+${DOTFILES}/vendor/rr/rr.py $*

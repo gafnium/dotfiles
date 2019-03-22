@@ -9,7 +9,6 @@ pip_packages=(
   netifaces
   powerline-status
   psutil
-  tmuxp
 )
 
 installed_pip_packages="$($pip_cmd list 2>/dev/null | awk '{print $1}')"

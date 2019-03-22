@@ -1,0 +1,2 @@
+cd ~/browser/src
+ninja -C out/Default chrome -j 50

@@ -1,6 +1,7 @@
 # Lots of junk goes in here.
 /caches/
 /backups/
+/remote_run/
 
 # Top secret stuff!
 /link/.ssh/id_*
@@ -9,11 +10,6 @@
 
 # Don't commit Vim plugins, vim-plug will install them.
 /link/.vim/plugged
-
-# Don't commit rbenv temp files.
-/link/.rbenv/shims/
-/link/.rbenv/versions/
-/link/.rbenv/version
 
 # Don't commit tmux plugins, tpm will install them.
 /link/.tmux/plugins

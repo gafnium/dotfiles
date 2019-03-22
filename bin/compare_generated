@@ -1,0 +1,5 @@
+#!/bin/bash
+
+name2=${1%f.xml}2f.xml
+#echo $1 $name2
+diff -uwB $1 $name2

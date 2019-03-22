@@ -1,18 +1,17 @@
 # History settings
 
-# Allow use to re-edit a faild history substitution.
-shopt -s histreedit
-# History expansions will be verified before execution.
-shopt -s histverify
+# don't put duplicate lines in the history. See bash(1) for more options
+# ... or force ignoredups and ignorespace
+HISTCONTROL=ignoredups:ignorespace:erasedups
 
-# Entries beginning with space aren't added into history, and duplicate
-# entries will be erased (leaving the most recent entry).
-export HISTCONTROL="ignorespace:erasedups"
-# Give history timestamps.
-export HISTTIMEFORMAT="[%F %T] "
-# Lots o' history.
-export HISTSIZE=10000
-export HISTFILESIZE=10000
+# append to the history file, don't overwrite it
+shopt -s histappend
 
-# Easily re-execute the last history command.
-alias r="fc -s"
+# for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
+HISTSIZE=1000
+HISTFILESIZE=2000
+PROMPT_COMMAND="history -n; history -w; $PROMPT_COMMAND"
+
+# check the window size after each command and, if necessary,
+# update the values of LINES and COLUMNS.
+shopt -s checkwinsize
