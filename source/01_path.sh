@@ -11,3 +11,5 @@ for p in "${paths[@]}"; do
 done
 unset p paths
 
+
+source $DOTFILES/vendor/z/z.sh
