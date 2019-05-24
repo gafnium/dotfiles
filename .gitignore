@@ -10,7 +10,7 @@
 
 # Don't commit Vim plugins, vim-plug will install them.
 /link/.vim/plugged
-
+/link/.vim/**/*.old
 # Don't commit tmux plugins, tpm will install them.
 /link/.tmux/plugins
 
