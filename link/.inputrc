@@ -1,11 +1,39 @@
-set editing-mode vi
+#set editing-mode vi
 
-# COMMAND MODE
-set keymap vi-command
-
-# INSERT MODE
-set keymap vi-insert
+#set keymap vi-command
+#set keymap vi-insert
 
 # Up/down arrows search history
 "\e[A": history-search-backward
 "\e[B": history-search-forward
+"C-u": undo
+"M-z": undo
+"\C-x\C-u": re-read-init-file
+
+"\C-lf": dump-functions
+"\C-lv": dump-variables
+"\C-lm": dump-macros
+
+set bell-style visible
+set colored-stats On
+#set completion-ignore-case On
+set completion-prefix-display-length 6
+set mark-symlinked-directories On
+set show-all-if-ambiguous On
+set show-all-if-unmodified On
+set visible-stats On
+
+$if Bash
+# edit the path
+"\C-xp": "PATH=${PATH}\e\C-e\C-a\ef\C-f"
+# prepare to type a quoted word --
+# insert open and close double quotes
+# and move to just after the open quote
+"\C-x\"": "\"\"\C-b"
+# Quote the current or previous word
+"\C-xq": "\eb\"\ef\""
+# Add a binding to refresh the line, which is unbound
+"\C-xr": redraw-current-line
+# Edit variable on current line.
+"\M-\C-v": "\C-a\C-k$\C-y\M-\C-e\C-a\C-y="
+$endif

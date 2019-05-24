@@ -6,11 +6,16 @@ HISTCONTROL=ignoredups:ignorespace:erasedups
 
 # append to the history file, don't overwrite it
 shopt -s histappend
+# compress multiline command to one line
+shopt -s cmdhist
 
 # for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
 HISTSIZE=1000
 HISTFILESIZE=2000
-PROMPT_COMMAND="history -n; history -w; $PROMPT_COMMAND"
+PROMPT_COMMAND="history -a; $PROMPT_COMMAND"
+HISTTIMEFORMAT="%d/%m/%y %T "
+HISTIGNORE='ls:bg:fg:history'
+
 
 # check the window size after each command and, if necessary,
 # update the values of LINES and COLUMNS.
