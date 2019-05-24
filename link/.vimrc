@@ -134,7 +134,7 @@ set wildignore+=*/vendor/*,*/.git/*,*/.hg/*,*/.svn/*,*/log/*,*/tmp/*
 " Vim commands
 set hidden " When a buffer is brought to foreground, remember undo history and marks.
 set report=0 " Show all changes.
-set mouse=a " Enable mouse in all modes.
+" set mouse=a " Enable mouse in all modes.
 set ttymouse=xterm2 " Ensure mouse works inside tmux
 set shortmess+=I " Hide intro menu.
 
@@ -264,23 +264,6 @@ let g:airline#extensions#tabline#fnamecollapse = 2
 let g:airline#extensions#tabline#buffer_idx_mode = 1
 let g:airline#extensions#syntastic#enabled = 1
 
-" NERDTree
-let NERDTreeShowHidden = 1
-let NERDTreeMouseMode = 2
-let NERDTreeMinimalUI = 1
-map <leader>n :NERDTreeToggle<CR>
-autocmd vimrc StdinReadPre * let s:std_in=1
-" If no file or directory arguments are specified, open NERDtree.
-" If a directory is specified as the only argument, open it in NERDTree.
-autocmd vimrc VimEnter *
-  \ if argc() == 0 && !exists("s:std_in") |
-  \   NERDTree |
-  \ elseif argc() == 1 && isdirectory(argv(0)) |
-  \   bd |
-  \   exec 'cd' fnameescape(argv(0)) |
-  \   NERDTree |
-  \ end
-
 " Signify
 let g:signify_vcs_list = ['git', 'hg', 'svn']
 
@@ -290,33 +273,12 @@ let g:signify_vcs_list = ['git', 'hg', 'svn']
 " let g:ctrlp_match_window_bottom = 0 " Show at top of window
 let g:ctrlp_show_hidden = 1
 
-" Vim-pipe
-let g:vimpipe_invoke_map = '<Leader>r'
-let g:vimpipe_close_map = '<Leader>p'
-
-" DBExt
-let g:dbext_default_profile_PG_skillsbot = 'type=pgsql:host=rds.bocoup.com:dbname=skillsbot-dev:user=skillsbot-dev'
-let g:dbext_default_profile = 'PG_skillsbot'
-
 " Indent Guides
 let g:indent_guides_start_level = 1
 let g:indent_guides_guide_size = 1
 
 " Mustache/handlebars
 let g:mustache_abbreviations = 1
-
-" Ack/ag
-if executable('ag')
-  let g:ackprg = 'ag --vimgrep'
-endif
-let g:ack_autoclose = 1
-nnoremap <Leader>a :Ack!<Space>
-
-" Multiple cursors
-nnoremap <silent> <M-j> :MultipleCursorsFind <C-R>/<CR>
-vnoremap <silent> <M-j> :MultipleCursorsFind <C-R>/<CR>
-nnoremap <silent> j :MultipleCursorsFind <C-R>/<CR>
-vnoremap <silent> j :MultipleCursorsFind <C-R>/<CR>
 
 " Ale
 let g:ale_sign_column_always = 1
@@ -331,13 +293,6 @@ let g:syntastic_javascript_checkers = ['eslint']
 let g:syntastic_javascript_eslint_exe = 'node_modules/.bin/eslint'
 let g:syntastic_json_checkers = ['jsonlint']
 
-" Emmet
-" imap <expr> <tab> emmet#expandAbbrIntelligent("\<tab>")
-let g:user_emmet_settings = {
-  \  'javascript.jsx' : {
-    \      'extends' : 'jsx',
-    \  },
-  \}
 
 " https://github.com/junegunn/vim-plug
 " Reload .vimrc and :PlugInstall to install plugins.
@@ -347,13 +302,8 @@ Plug 'rafi/awesome-vim-colorschemes'                                            
 Plug 'bling/vim-airline'                                                        " Status bar
 Plug 'tpope/vim-surround'                                                       " Quotes / parens / tags
 Plug 'tpope/vim-fugitive'                                                       " Git wrapper
-Plug 'tpope/vim-rhubarb'                                                        " Github helper
-Plug 'tpope/vim-vinegar'                                                        " File browser (?)
-Plug 'tpope/vim-repeat'                                                         " Enable . repeat in plugins
 Plug 'tpope/vim-commentary'                                                     " (gcc) Better commenting
 Plug 'tpope/vim-unimpaired'                                                     " Pairs of mappings with [ ]
-Plug 'tpope/vim-eunuch'                                                         " Unix helpers
-Plug 'scrooloose/nerdtree'                                                      " (,n) File browser
 Plug 'ctrlpvim/ctrlp.vim'                                                       " (C-P)(,b) Fuzzy file/buffer/mru/tag finder
 if v:version < 705 && !has('patch-7.4.785')
   Plug 'vim-scripts/PreserveNoEOL'                                              " Preserve missing final newline on save
@@ -361,19 +311,8 @@ endif
 Plug 'editorconfig/editorconfig-vim'                                            " EditorConfig
 Plug 'nathanaelkane/vim-indent-guides'                                          " (,ig) Visible indent guides
 Plug 'pangloss/vim-javascript', {'for': 'javascript'}
-Plug 'mxw/vim-jsx', {'for': 'javascript.jsx'}                                   " React JSX highlighting/indenting
-Plug 'AndrewRadev/splitjoin.vim'                                                " (gS)(gJ) Split/join multi-line statements
 Plug 'mhinz/vim-signify'                                                        " VCS status in the sign column
-Plug 'mattn/emmet-vim'                                                          " (C-Y,) Expand HTML abbreviations
-Plug 'chase/vim-ansible-yaml'                                                   " Ansible YAML highlighting
-Plug 'klen/python-mode', {'for': 'python'}                                      " Python mode
-Plug 'terryma/vim-multiple-cursors'                                             " (C-N) Multiple selections/cursors
-Plug 'vim-scripts/dbext.vim'
-Plug 'krisajenkins/vim-pipe'                                                    " (,r) Run a buffer through a command
-Plug 'krisajenkins/vim-postgresql-syntax'
 Plug 'mileszs/ack.vim'
-Plug 'tmux-plugins/vim-tmux'
-Plug 'christoomey/vim-tmux-navigator'
 Plug 'elzr/vim-json'
 Plug 'othree/eregex.vim'
 if v:version >= 800
