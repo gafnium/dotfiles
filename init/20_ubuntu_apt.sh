@@ -25,27 +25,15 @@ function add_ppa() {
 
 # Misc.
 apt_packages+=(
-  awscli
   build-essential
-  cmatrix
   cowsay
   curl
-  docker.io
-  docker-compose
   git-core
   groff
-  hollywood
   htop
-  id3tool
-  imagemagick
-  jq
-  mercurial
   nmap
-  postgresql
   python-pip
-  silversearcher-ag
   sl
-  telnet
   thefuck
   tree
 )
@@ -54,27 +42,21 @@ apt_packages+=(vim)
 is_ubuntu_desktop && apt_packages+=(vim-gnome)
 
 # https://github.com/neovim/neovim/wiki/Installing-Neovim
-add_ppa ppa:neovim-ppa/stable
-apt_packages+=(neovim)
+#add_ppa ppa:neovim-ppa/stable
+#apt_packages+=(neovim)
 
 # https://launchpad.net/~stebbins/+archive/ubuntu/handbrake-releases
-add_ppa ppa:stebbins/handbrake-releases
-apt_packages+=(handbrake-cli)
-is_ubuntu_desktop && apt_packages+=(handbrake-gtk)
+#add_ppa ppa:stebbins/handbrake-releases
+#apt_packages+=(handbrake-cli)
+#is_ubuntu_desktop && apt_packages+=(handbrake-gtk)
 
 # https://github.com/rvm/ubuntu_rvm
-add_ppa ppa:rael-gc/rvm
-apt_packages+=(rvm)
-
-# https://github.com/rbenv/ruby-build/wiki
-apt_packages+=(
-  autoconf bison build-essential libssl-dev libyaml-dev libreadline6-dev
-  libncurses5-dev libffi-dev libgdbm3 libgdbm-dev zlib1g-dev
-)
+#add_ppa ppa:rael-gc/rvm
+#apt_packages+=(rvm)
 
 # https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-ansible-on-ubuntu-16-04
-add_ppa ppa:ansible/ansible
-apt_packages+=(ansible)
+#add_ppa ppa:ansible/ansible
+#apt_packages+=(ansible)
 
 # http://tipsonubuntu.com/2016/09/13/vim-8-0-released-install-ubuntu-16-04/
 add_ppa ppa:jonathonf/vim
@@ -232,22 +214,6 @@ if is_ubuntu_desktop; then
   deb_installed+=(/usr/bin/discord)
   deb_sources+=("https://discordapp.com/api/download?platform=linux&format=deb")
 
-  # http://askubuntu.com/questions/854480/how-to-install-the-steam-client/854481#854481
-  apt_packages+=(python-apt)
-  deb_installed+=(/usr/bin/steam)
-  deb_sources+=(deb_source_steam)
-  function deb_source_steam() {
-    local steam_root steam_file
-    steam_root=http://repo.steampowered.com/steam/pool/steam/s/steam/
-    steam_file="$(wget -q -O- "$steam_root?C=M;O=D" | sed -En '/steam-launcher/{s/.*href="([^"]+)".*/\1/;p;q;}')"
-    echo "$steam_root$steam_file"
-  }
-  # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=772598
-  # apt_packages+=(steam)
-  # function preinstall_steam() {
-  #   echo steam steam/question select I AGREE | sudo debconf-set-selections
-  #   echo steam steam/license note | sudo debconf-set-selections
-  # }
 fi
 
 function other_stuff() {
