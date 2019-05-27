@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+import os
+import sys
+import os.path
+import subprocess
+import re
+import argparse
+
+TOCKET_ID_PATTERN = re.compile('[A-Z]+-\d+')
+BRANCH_NAME_PATTERN = re.compile('master(-\d+\.\d+\.\d+)\/.+')
+
+def check_location(ticket_id):
+    if TOCKET_ID_PATTERN.match(ticket_id) is None:
+        raise RuntimeError('Ticket id should have format like BROWSER-12345')
+
+    top_level_dir = subprocess.run(['git', 'rev-parse', '--show-toplevel'],
+        text=True, check=True, capture_output=True).stdout.strip()
+    if top_level_dir == '':
+        raise RuntimeError('Current dir should be inside Git repository')
+    ci_config_dir = os.path.join(
+        top_level_dir,'src', 'build', 'yandex', 'ci', 'configs','platforms')
+
+    if not os.path.isdir(ci_config_dir):
+        raise RuntimeError('This utility works with browser repository, so {} dir should exists'.format(ci_config_dir))
+
+    cur_branch = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+        text=True, check=True, capture_output=True).stdout.strip()
+    release_version = ''
+    if cur_branch == 'master':
+        release_version = ''
+    else:
+        m = BRANCH_NAME_PATTERN.match(cur_branch)
+        if m is None:
+            raise RuntimeError('Switch to master or release branch')
+        release_version = m.group(1)
+
+    return ci_config_dir, release_version
+
+
+def create_branch(release_version, ticket_id):
+    branch_no = 1
+    branch_name = None
+    while True:
+        branch_name = 'wp{0}/{1}/{2}'.format(release_version, ticket_id, branch_no)
+        process = subprocess.run(['git', 'checkout', '-b', branch_name],
+            text=True, capture_output=True)
+        if process.returncode == 0:
+            break
+        elif process.returncode == 128:
+            branch_no += 1
+        else:
+            process.check_returncode()
+    print('Created branch', branch_name)
+
+def unblacklist_file(ci_file, ticket_id):
+    input = None
+    with open(ci_file, 'rt') as f:
+        input = f.readlines()
+
+    output = []
+    lines_erased = 0
+    skip_next_empty = False
+    for l in input:
+        if l.find(ticket_id) != -1:
+            lines_erased += 1
+            skip_next_empty = output[-1].strip() == ''
+            continue
+
+        if not skip_next_empty or l.strip() != '':
+            output.append(l)
+        skip_next_empty = False
+
+    if lines_erased == 0:
+        return
+
+    with open(ci_file, 'wt') as f:
+        f.writelines(output)
+    print('Removed {} line{} from {}'.format(
+        lines_erased, 's' if lines_erased > 1 else '', os.path.basename(ci_file)))
+
+def unblacklist(ci_config_dir, ticket_id):
+    with os.scandir(ci_config_dir) as it:
+        for entry in it:
+            if not entry.name.startswith('.') and entry.name.endswith('.yaml') and entry.is_file():
+                unblacklist_file(os.path.join(ci_config_dir, entry.name), ticket_id)
+
+def main():
+    parser = argparse.ArgumentParser(
+            description='This utiity creates new branch for fixing failing tests and remove these tests from blacklists.',
+            usage='%(prog)s <ticket-id>')
+    parser.add_argument(
+        'ticket_id',
+        help='Startrek ticket id, i.e. BROWSER-12345')
+    args = parser.parse_args()
+
+    try:
+        ci_config_dir, release_version = check_location(args.ticket_id)
+        create_branch(release_version, args.ticket_id)
+        unblacklist(ci_config_dir, args.ticket_id)
+
+    except Exception as exc:
+        print(exc)
+        return 1
+
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main())
