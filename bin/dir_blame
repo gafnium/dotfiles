@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+import sys;
+import subprocess;
+
+file_filter = ["*.txt", "*.html"]
+#file_filter = [ "*.cc", "*.h", "*.mm", "*.cpp"]
+output = subprocess.run(["git", "ls-files", "--"] + file_filter, text=True, capture_output=True).stdout
+files = output.split("\n")
+idx = 0
+for filename in files:
+  idx += 1
+  if filename:
+    print(filename, idx, "from", len(files), file=sys.stderr)
+    cur_output = subprocess.run(["git", "blame", filename], text=True, capture_output=True).stdout
+    lines = cur_output.split("\n")
+    first_line = False
+    for line in lines:
+      if line and line.find("chromium") == -1:
+        if not first_line:
+          first_line = True
+          print(filename, "START")
+        print(line)
+    if first_line:
+      print(filename, "END")

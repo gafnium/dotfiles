@@ -1,0 +1,107 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from __future__ import print_function
+import argparse
+import os
+import os.path
+import posixpath
+import sys
+import re
+import subprocess
+
+ARCH_TO_DIR = {
+  'x86' : ('x86', 'i686-linux-android'),
+  'x64' : ('x86_64','x86_64-linux-android'),
+  'arm' : ('arm-linux-androideabi','arm-linux-androideabi'),
+  'arm64' : ('aarch64-linux-android', 'aarch64-linux-android')
+}
+
+def build_tool_paths(target_arch):
+    path = os.path.join(os.getcwd(), 'third_party','android_ndk','toolchains')
+    dir_prefix, tool_prefix = ARCH_TO_DIR[target_arch]
+
+    for d in os.listdir(path):
+        if d.startswith(dir_prefix):
+            tools_dir = d
+
+    if tools_dir is None:
+        raise ValueError('Cannot find toolchain for %s in %s' % dir_prefix, path)
+    path = os.path.join(path, tools_dir, 'prebuilt','linux-x86_64','bin')
+    if not os.access(path, os.R_OK):
+        raise ValueError('Cannot find toolchain dir %s' % path)
+    return os.path.join(path, tool_prefix+'-addr2line'), os.path.join(path, tool_prefix+'-c++filt')
+
+def find_arch(out_dir):
+    target_os = None
+    target_arch = None
+    with open(os.path.join(out_dir,'args.gn'), 'rt') as f:
+        for l in f:
+            name, _, value = l.partition('=')
+            if value:
+                name = name.strip()
+                value = value.strip().strip('"\'')
+                if name == 'target_os':
+                    target_os = value
+                elif name == 'target_cpu':
+                    target_arch = value
+    if target_os != 'android':
+        raise ValueError('Build in %s is not for Android' % os.path.abspath(out_dir))
+    if not target_arch:
+        raise ValueError('Build in %s has no target_cpu argument' % os.path.abspath(out_dir))
+    return target_arch
+
+def get_function_name(so_name, addr, tools):
+    params = (tools[0], '--functions', '--demangle', '--pretty-print', '--exe', so_name, addr)
+    process = subprocess.Popen(params, stdout=subprocess.PIPE, stderr= subprocess.STDOUT, universal_newlines=True)
+    lines = []
+    for line in process.stdout:
+        lines.append(line.strip())
+    result = process.wait()
+
+    if result != 0:
+        return so_name + "+" + addr
+    return lines[0]
+
+
+# 04-04 10:38:48.413  8606  8606 E chromium: #01 0xc550662d /data/app/com.yandex.browser.canary-234e7Pe3yPhBeSX29QgaXA==/lib/arm/libcontent.cr.so+0x00efc62d
+STACK_TRACE_PATTERN = re.compile('(?P<cnt>#\d\d) 0x[0-9a-f]{8} (?P<so>\/.+\.so)\+(?P<addr>0x[0-9a-f]{8})')
+def process_line(line, tools, lib_prefix):
+    m = STACK_TRACE_PATTERN.search(line)
+    if m is None:
+        return line
+    so_name = os.path.join(lib_prefix, posixpath.basename(m.group('so')))
+    addr = m.group('addr')
+    out_line = line[:m.start(0)] + m.group('cnt') + ' ' + get_function_name(so_name, addr, tools)
+    return out_line
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        'out_dir',
+        help='file with browser build, e.g. out/debug')
+    try:
+        args = parser.parse_args()
+
+        arch = find_arch(args.out_dir)
+        tools = build_tool_paths(arch)
+        lib_prefix = os.path.join(args.out_dir, 'lib.unstripped')
+
+        while True:
+            line = raw_input()
+            print(process_line(line, tools, lib_prefix))
+
+        #for line in sys.stdin:
+    #        print(process_line(line, tools, lib_prefix))
+
+    except ValueError as exc:
+        print(exc)
+        return 1
+    except Exception as exc:
+        print(exc)
+        return 2
+
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main())

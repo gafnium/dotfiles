@@ -12,13 +12,9 @@ else
 fi
 
 # Directory listing
-if [[ "$(type -P tree)" ]]; then
-  alias ll='tree --dirsfirst -aLpughDFiC 1'
-  alias lsd='ll -d'
-else
-  alias ll='ls -al'
-  alias lsd='CLICOLOR_FORCE=1 ll | grep --color=never "^d"'
-fi
+alias ll='ls -lGh'
+alias la='ls -a'
+alias lla='ls -lGha'
 
 # Easier navigation: .., ..., -
 alias ..='cd ..'
