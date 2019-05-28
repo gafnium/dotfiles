@@ -6,7 +6,7 @@ grep "excludesFile" <$config_file >/dev/null && return 1
 
 cat >>$config_file <<EOF
 [core]
-  excludesFile = ${HOME}/.gitignore
+  excludesFile = ${HOME}/.gitignore_global
 [http]
   cookieFile = ${HOME}/.gitcookies
   saveCookies = true

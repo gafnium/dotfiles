@@ -1,0 +1,35 @@
+termcapinfo xterm ti@:te@
+activity "%c activity -> %n%f %t"
+autodetach on
+altscreen off
+bell "%c bell -> %n%f %t^G"
+defflow auto
+defscrollback 10000
+defutf8 on
+msgwait 2                 # 1 second messages
+startup_message off        # disable the startup splash message
+shell -bash
+vbell_msg "[[[ ding ]]]"
+vbell off
+nethack on
+zombie cr
+
+hardstatus alwayslastline "%{= w}%-w%{= Bk} %n %t %{-}%+w %-="
+
+#bind 'K' kill
+#bind 'W' windowlist
+#bind 'V' vert_split
+# F5 and F6 to move one screen forward or backward
+bindkey -k F1 prev
+bindkey -k F2 next
+
+screen -t bash1 bash
+screen -t bash2 bash
+screen -t "my top" top -u gafnium
+select bash1
+
+# If you need more terms then uncomment however many you need
+#screen -t bash2 bash
+#screen -t bash3 bash
+# #screen -t bash8 bash
+# #screen -t bash9 bash

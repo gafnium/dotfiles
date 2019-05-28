@@ -36,3 +36,6 @@ function md() {
   mkdir -p "$@" && cd "$@"
 }
 
+# Thefuck  integration
+alias oi='$(thefuck $(fc -ln -1))'
+alias no=oi
