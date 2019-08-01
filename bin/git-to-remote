@@ -1,0 +1,2 @@
+#!/bin/bash
+git fetch origin $1 && git checkout -B $1 origin/$1

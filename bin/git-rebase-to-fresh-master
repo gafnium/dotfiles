@@ -1,0 +1,25 @@
+#!/bin/bash
+set -e
+cur_branch=$(git rev-parse --abbrev-ref HEAD)
+
+[[ $cur_branch == master* ]] && on_master=1
+git diff-index --quiet HEAD -- || changes=1
+
+echo $cur_branch,  $on_master, $changes
+
+if [[ $changes ]]; then
+  git stash push -m "$0 stored changes"
+fi
+
+if [[ $on_master ]]; then
+  git pull --rebase --no-stat origin $cur_branch
+else
+  git fetch origin master
+  git checkout -B master origin/master
+  git checkout $cur_branch
+  git rebase master
+fi
+
+if [[ $changes ]]; then
+  git stash pop
+fi

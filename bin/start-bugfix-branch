@@ -6,23 +6,27 @@ import subprocess
 import re
 import argparse
 
-TOCKET_ID_PATTERN = re.compile('[A-Z]+-\d+')
+TICKET_ID_PATTERN = re.compile('[A-Z]+-\d+')
 BRANCH_NAME_PATTERN = re.compile('master(-\d+\.\d+\.\d+)\/.+')
+# FEATURE_BRANCH_NAME_PATTERN = re.compile('wp(-\d+\.\d+\.\d+)?\/[A-Z]+-\d+\/\d+')
 
-def check_location(ticket_id):
-    if TOCKET_ID_PATTERN.match(ticket_id) is None:
-        raise RuntimeError('Ticket id should have format like BROWSER-12345')
-
+def get_ci_config_dir():
     top_level_dir = subprocess.run(['git', 'rev-parse', '--show-toplevel'],
         text=True, check=True, capture_output=True).stdout.strip()
     if top_level_dir == '':
         raise RuntimeError('Current dir should be inside Git repository')
+    print('Git root:', top_level_dir)
+
     ci_config_dir = os.path.join(
         top_level_dir,'src', 'build', 'yandex', 'ci', 'configs','platforms')
 
     if not os.path.isdir(ci_config_dir):
         raise RuntimeError('This utility works with browser repository, so {} dir should exists'.format(ci_config_dir))
 
+    print('CI config dir: ', ci_config_dir)
+    return ci_config_dir
+
+def get_release_version():
     cur_branch = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
         text=True, check=True, capture_output=True).stdout.strip()
     release_version = ''
@@ -34,7 +38,7 @@ def check_location(ticket_id):
             raise RuntimeError('Switch to master or release branch')
         release_version = m.group(1)
 
-    return ci_config_dir, release_version
+    return release_version
 
 
 def create_branch(release_version, ticket_id):
@@ -70,13 +74,14 @@ def unblacklist_file(ci_file, ticket_id):
             output.append(l)
         skip_next_empty = False
 
+    print('Removed {} line{} from {}'.format(
+        lines_erased, 's' if lines_erased != 1 else '', os.path.basename(ci_file)))
+
     if lines_erased == 0:
         return
 
     with open(ci_file, 'wt') as f:
         f.writelines(output)
-    print('Removed {} line{} from {}'.format(
-        lines_erased, 's' if lines_erased > 1 else '', os.path.basename(ci_file)))
 
 def unblacklist(ci_config_dir, ticket_id):
     with os.scandir(ci_config_dir) as it:
@@ -91,11 +96,25 @@ def main():
     parser.add_argument(
         'ticket_id',
         help='Startrek ticket id, i.e. BROWSER-12345')
+    parser.add_argument(
+            '-u',
+            '--unblacklist-only',
+            action='store_const',
+            dest='unblacklist',
+            const=True,
+            help='only unblacklist tests in CI configs')
     args = parser.parse_args()
 
     try:
-        ci_config_dir, release_version = check_location(args.ticket_id)
-        create_branch(release_version, args.ticket_id)
+        if TICKET_ID_PATTERN.match(args.ticket_id) is None:
+            raise RuntimeError('Ticket id should have format like BROWSER-12345')
+
+        ci_config_dir = get_ci_config_dir();
+
+        if not args.unblacklist:
+            release_version = get_release_version()
+            create_branch(release_version, args.ticket_id)
+
         unblacklist(ci_config_dir, args.ticket_id)
 
     except Exception as exc:

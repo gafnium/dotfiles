@@ -1,0 +1,129 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from __future__ import print_function
+import argparse
+import traceback
+from PIL import Image, ImageColor, ImageDraw
+import sys
+import re
+from base64 import b64decode
+from StringIO import StringIO
+
+
+
+DIFF_MARKER = "Pixels do not match!"
+# Actual: data:image/png;base64,iVBOR
+STACK_TRACE_PATTERN = re.compile('] (?P<type>[^:]+): data:image\/png;base64,(?P<data>[0-9A-Za-z\/\+=]+)')
+
+def load_pixels(data):
+    in_file = StringIO(data)
+    im = Image.open(in_file)
+    return im
+
+MAX_CD = 0
+
+def color_distance(e1, e2):
+    rmean = (e1[0] + e2[0]) // 2;
+    r = abs(e1[0] - e2[0]);
+    g = abs(e1[1] - e2[1]);
+    b = abs(e1[2] - e2[2]);
+    cd =  int(pow((((512+rmean)*r*r) // 256 ) + 4*g*g + (((767-rmean)*b*b)//256), 0.5)) // 4;
+    global MAX_CD
+    MAX_CD = max(MAX_CD, cd)
+    return cd
+
+COLOR_TABLE = [ImageColor.getrgb('hsv({},100%,100%)'.format(128 - i // 2)) for i in range(0,255)]
+C_WHITE = (255,255,255)
+C_RED = (255,0,0)
+C_BLACK = (0,0,0)
+C_BLUE = (0,255,255)
+
+def image_diff(a,b,r):
+    res = r.load()
+    for x in xrange(0, r.width):
+        for y in xrange(0, r.height):
+            res[x,y] = COLOR_TABLE[color_distance(a[x,y],b[x,y])]
+
+def show_diff(actual_data, expected_data):
+    actual = load_pixels(actual_data)
+    expected = load_pixels(expected_data)
+    diff = Image.new('RGB',
+        (min(actual.width, expected.width), min(actual.height, expected.height)),
+        C_WHITE)
+
+    image_diff(actual.load(), expected.load(), diff)
+    print(MAX_CD)
+
+    w = actual.width + expected.width + diff.width + 8
+    h = max(actual.height, expected.height) + 4
+    res = Image.new('RGB', (w, h), C_WHITE)
+
+    #print(actual.width, expected.width, actual.height, expected.height)
+    #print(diff.width, diff.height, w, h)
+    res.paste(actual, (2,2))
+    res.paste(diff, (actual.width + 4, 2))
+    res.paste(expected, (actual.width + diff.width + 6, 2))
+    draw = ImageDraw.Draw(res)
+    draw.rectangle((1,1, actual.width+2, actual.height+2), outline=C_BLUE, width=1)
+    draw.rectangle((actual.width + 3, 1, actual.width + diff.width + 4, diff.width+2), outline=C_BLUE, width=1)
+    draw.rectangle((actual.width + diff.width + 5, 1, actual.width + diff.width + expected.width + 6, expected.width+2), outline=C_BLUE, width=1)
+    res.show()
+
+class LineProcessor:
+    def __init__(self):
+        self._loading_diff = False
+        self._actual_data = None
+        self._expected_data = None
+
+    def clear(self):
+        self._loading_diff = False
+        self._actual_data = None
+        self._expected_data = None
+
+    def process(self, line):
+        if line.find(DIFF_MARKER) >= 0:
+            self._actual_data = None
+            self._expected_data = None
+            self._loading_diff = True
+        elif self._loading_diff:
+            m = STACK_TRACE_PATTERN.search(line)
+            if m is not None:
+                t = m.group('type')
+                d = m.group('data')
+                if t.lower() == 'actual':
+                    self._actual_data = d
+                elif t.lower() == 'expected':
+                    self._expected_data = d
+                else:
+                    return line + '\n Unknown image type: ' + t
+
+            if self._actual_data is not None and  self._expected_data is not None:
+                show_diff(b64decode(self._actual_data), b64decode(self._expected_data))
+                self.clear()
+
+        return line
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Pixel-test-filter: Filter cc_unittests PixelTest outputs and show image diffs.')
+    try:
+        args = parser.parse_args()
+
+        processor = LineProcessor()
+
+        while True:
+            line = raw_input()
+            print(processor.process(line))
+
+    except EOFError:
+        pass
+    except Exception as exc:
+        traceback.print_exc();
+        print(exc)
+        return 2
+
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main())

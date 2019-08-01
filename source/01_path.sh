@@ -3,6 +3,7 @@ paths=(
   $DOTFILES/bin
   ~/yatool
   ~/depot_tools
+  ~/Library/Python/2.7/bin
 )
 
 export PATH
