@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -e
+
+processed_files=;
+
+function compile(){
+  if [[ "${processed_files}" == *"$1"* ]]; then
+    return 0
+  else
+    echo Trying $1 ...
+    DC_DISABLED=1 yakuza -k0 -C out/debug/ "../../$1^" || true
+    processed_files=$processed_files:$1
+  fi
+}
+
+file_list=$(git status --untracked-files=no --no-renames --porcelain | awk '/M src\// { print substr($2,5) }')
+
+for file in $file_list; do
+  #echo $file
+  if [[ $file == *.cc ]]; then
+    compile $file
+  elif [[ $file == *.h ]]; then
+    compile ${file%.h}".cc"
+  fi
+done

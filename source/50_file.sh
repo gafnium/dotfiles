@@ -36,6 +36,11 @@ function md() {
   mkdir -p "$@" && cd "$@"
 }
 
-# Thefuck  integration
-alias oi='$(thefuck $(fc -ln -1))'
-alias no=oi
+if is_mingw; then
+  echo
+else
+  # Thefuck  integration
+  eval $(thefuck --alias)
+  alias oi='$(thefuck $(fc -ln -1))'
+  alias no=oi
+fi
