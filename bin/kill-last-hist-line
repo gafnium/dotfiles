@@ -1,0 +1,22 @@
+#!/bin/bash
+
+echo $READLINE_LINE
+
+function del_history() {
+lc=$(($1-1))
+sed -i -e "$lc,\$d" ~/.bash_history
+}
+
+if [[ "$READLINE_LINE" == "" ]]; then
+  lc=$(wc -l < ~/.bash_history)
+  del_history $lc
+  echo "Last history erased, next:"  $(tail -1 ~/.bash_history)
+else
+  found=$(fgrep -x -m 1 -n "$READLINE_LINE" <~/.bash_history)
+  if [[ $found != "" ]]; then
+    lc=${found%%:*}
+    del_history $lc
+    echo "Erasing matching history"
+  fi
+fi
+

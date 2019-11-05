@@ -2,15 +2,16 @@
 import sys;
 import subprocess;
 
-file_filter = ["*.txt", "*.html"]
+#file_filter = ["*.txt", "*.html"]
 #file_filter = [ "*.cc", "*.h", "*.mm", "*.cpp"]
+file_filter = ["*test.cc"]
 output = subprocess.run(["git", "ls-files", "--"] + file_filter, text=True, capture_output=True).stdout
 files = output.split("\n")
 idx = 0
 for filename in files:
   idx += 1
   if filename:
-    print(filename, idx, "from", len(files), file=sys.stderr)
+    print(filename, "(", idx, "of", len(files), ")",  file=sys.stderr)
     cur_output = subprocess.run(["git", "blame", filename], text=True, capture_output=True).stdout
     lines = cur_output.split("\n")
     first_line = False
@@ -19,6 +20,7 @@ for filename in files:
         if not first_line:
           first_line = True
           print(filename, "START")
-        print(line)
+        fields =line.split(" ", maxsplit=2)
+        print(fields[0], fields[2])
     if first_line:
       print(filename, "END")

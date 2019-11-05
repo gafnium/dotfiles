@@ -1,21 +1,6 @@
 # Editing
 
 export EDITOR=vim
-
-# If mvim is installed, use it instead of native vim
-if [[ "$(which mvim)" ]]; then
-    EDITOR="mvim -v"
-fi
-
-if [[ "$(which gvim)" ]]; then
-  if [[ ! "$SSH_TTY" ]]; then
-    if [[ ! "$TMUX" ]]; then
-      is_osx && EDITOR=mvim || EDITOR=gvim
-    fi
-    export LESSEDIT="$EDITOR ?lm+%lm -- %f"
-  fi
-fi
-
 export VISUAL="$EDITOR"
 
 function q() {

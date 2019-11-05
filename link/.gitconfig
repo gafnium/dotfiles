@@ -3,6 +3,9 @@
 	fscache = true
 	preloadindex = true
 	longpaths = true
+	pager = less -F -X
+[reset]
+	quiet = true
 [color]
 	diff = auto
 	status = auto
@@ -19,6 +22,7 @@
 	p = push origin HEAD
 	dc = diff --cached
 	stt = status -uno
+	l = log --max-count=20 --pretty=format:\"%h %ad | %s%d [%an]\" --first-parent --date=short
 [credential]
 	helper = cache --timeout=3600000
 [branch "master"]

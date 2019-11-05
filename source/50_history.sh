@@ -16,6 +16,9 @@ PROMPT_COMMAND="history -a; $PROMPT_COMMAND"
 HISTTIMEFORMAT="%d/%m/%y %T "
 HISTIGNORE='ls:bg:fg:history'
 
+# bind Ctrl-K to erase currently selected (or last if readline input is empty) line from history
+bind -x '"\C-K":"kill-last-hist-line; history -c; history -r"'
+
 
 # check the window size after each command and, if necessary,
 # update the values of LINES and COLUMNS.

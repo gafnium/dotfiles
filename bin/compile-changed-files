@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-set -e
 
 processed_files=;
 
 function compile(){
-  if [[ "${processed_files}" == *"$1"* ]]; then
+  if [[ (! -f $1) || "${processed_files}" == *"$1"* ]]; then
     return 0
   else
     echo Trying $1 ...
@@ -13,11 +12,13 @@ function compile(){
   fi
 }
 
-file_list=$(git status --untracked-files=no --no-renames --porcelain | awk '/M src\// { print substr($2,5) }')
+file_list=$(git status --untracked-files=no --no-renames --short . | awk '/M[ M]/{ print substr($2,1) }')
 
 for file in $file_list; do
-  #echo $file
+  echo $file
   if [[ $file == *.cc ]]; then
+    compile $file
+  elif [[ $file == *.cpp ]]; then
     compile $file
   elif [[ $file == *.h ]]; then
     compile ${file%.h}".cc"

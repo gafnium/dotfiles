@@ -34,6 +34,7 @@ def color_distance(e1, e2):
     return cd
 
 COLOR_TABLE = [ImageColor.getrgb('hsv({},100%,100%)'.format(128 - i // 2)) for i in range(0,255)]
+COLOR_TABLE[0] = (192,192,192)
 C_WHITE = (255,255,255)
 C_RED = (255,0,0)
 C_BLACK = (0,0,0)
@@ -99,6 +100,8 @@ class LineProcessor:
                     return line + '\n Unknown image type: ' + t
 
             if self._actual_data is not None and  self._expected_data is not None:
+                #print("Actual ", self._actual_data)
+                #print("Expected ", self._expected_data)
                 show_diff(b64decode(self._actual_data), b64decode(self._expected_data))
                 self.clear()
 
