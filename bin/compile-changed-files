@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 
 processed_files=;
+failed_files=;
 
 function compile(){
   if [[ (! -f $1) || "${processed_files}" == *"$1"* ]]; then
     return 0
   else
     echo Trying $1 ...
-    DC_DISABLED=1 yakuza -k0 -C out/debug/ "../../$1^" || true
+    DC_DISABLED=1 yakuza -k0 -C out/debug/ "../../$1^" || failed_files=${failed_files}" : "$1
     processed_files=$processed_files:$1
   fi
 }
@@ -24,3 +25,10 @@ for file in $file_list; do
     compile ${file%.h}".cc"
   fi
 done
+
+if [[ "${failed_files}" == "" ]]; then
+  echo Compilation successfull
+else
+  echo Compilation failed for ${failed_files}
+fi
+

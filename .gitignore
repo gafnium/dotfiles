@@ -4,10 +4,8 @@
 /remote_run/
 
 # Top secret stuff!
-/link/.ssh/id_*
-/link/.ssh/*.pem
-/link/.ssh/known_hosts*
-
+/link/.ssh/*
+OD
 # Don't commit Vim plugins, vim-plug will install them.
 /link/.vim/plugged
 /link/.vim/**/*.old
