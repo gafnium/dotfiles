@@ -28,19 +28,10 @@ if [ -n "$force_color_prompt" ]; then
 fi
 
 if [ "$color_prompt" = yes ]; then
-    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+    PS1='\[\033[01;31m\]$(screens_count)\[\033[01;32m\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 else
-    PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
+    PS1='$(screens_count)${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
 fi
-
-if [[ "$(which screen)" ]]; then
-    if [ "$color_prompt" = yes ]; then
-        PS1='\[\033[01;31m\]$(screens_count)\[\033[01;32m\]$PS1'
-    else
-        PS1='$(screens_count)$PS1'
-    fi
-fi
-
 unset color_prompt force_color_prompt
 
 # Allow prompt to be restored to default.
