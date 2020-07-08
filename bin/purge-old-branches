@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+
+
+
+function usage()
+{
+    echo -e "List and remove branches with old commits in it"
+    echo -e "\tUSAGE:"
+    echo -e "purge-old-branches [options] <last commit time spec>"
+    echo -e "\t-h --help - display help"
+    echo ""
+    echo -e "\tDate spec as for 'date' command:"
+    echo -e "\t'1 month ago', ' 20 days ago' etc."
+    echo ""
+}
+
+DATE=$(which gdate || which date)
+
+date_spec=
+
+while [ "$1" != "" ]; do
+    case $1 in
+        -h | --help)
+            usage
+            exit 0
+            ;;
+        -*)
+            echo "ERROR: unknown parameter \"$1\""
+            usage
+            exit 1
+            ;;
+        *)
+            date_spec=$date_spec" "$1
+    esac
+    shift
+done
+if [[ "$date_spec" == "" ]]; then
+  echo "ERROR: date must be specified"
+  usage
+  exit 1
+fi
+
+date_stamp=$($DATE --date="$date_spec" '+%s')
+if [[ $? != 0 ]]; then
+  echo "ERROR: cannot parse date spec: $date_spec"
+  usage
+  exit 2
+fi
+
+branches=$(git for-each-ref --format="%(refname:short)" refs/heads)
+old_branches=
+echo Old branches and it\'s last commits:
+for br in $branches; do
+  last_commit=$(git log --pretty=format:"%ai (%ar) %ae  %s" --max-count=1 --first-parent $br)
+  commit_time=$(echo $last_commit | awk '{print $1 " " $2 " " $3}' | $DATE --file - '+%s')
+  if [[ $commit_time < $date_stamp ]]; then
+    echo $br "->"$'\t' $last_commit
+    old_branches="$old_branches $br"
+  fi
+done
+
+echo -n "Do you want to remove all listed branches [N/y/i]? "
+read
+case $REPLY in
+       y)
+          git br -D $old_branches
+          exit 0
+          ;;
+       i)
+          for br in $old_branches; do
+             echo -n "Remove branch $br [N/y]? "
+             read
+             if [[ $REPLY == y ]]; then
+               git br -D $br
+             fi
+          done
+          ;;
+        *)
+          exit 0
+esac
+

@@ -1,0 +1,2 @@
+#!/bin/bash
+git fetch origin $1 && git branch $1 origin/$1

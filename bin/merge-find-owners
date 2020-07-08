@@ -1,0 +1,180 @@
+#!/usr/bin/python
+
+import argparse
+import collections
+import os
+import re
+import subprocess
+import sys
+
+# A cache of file names for TestSuite.TestCase pairs.
+test_file_lookup = {}
+
+
+def ask_index(prompt, lower_bound, upper_bound):
+    index = int(raw_input("{} ({}-{}): ".format(
+            prompt, lower_bound, upper_bound)))
+    while index < lower_bound and index > upper_bound:
+        index = int(raw_input("Wrong index {}. {} ({}-{}): ".format(
+                index, prompt, lower_bound, upper_bound)))
+    return index
+
+
+def tests_to_find_owners(grep_output):
+    for line in grep_output:
+        match = re.search(r"(\S.+):\s*(\S+)", line.strip())
+        if match and match.group(2) == args.ticket:
+            yield match.group(1)
+
+
+def find_generic_test_file(test_name):
+    def find_test_info(test_name):
+        match = re.search(r"(.*[\.\/])?(\w+)\.([^\.\/\[]+)", test_name)
+        if match:
+            return match.group(2), match.group(3)
+        else:
+            print "Unable to detect test info from", test_name
+            return (raw_input("Please enter test suite name: "),
+                    raw_input("Please enter test case name: "))
+
+    def extract_file_name(grep_line):
+        match = re.search(r"([^:]+):([^:]+):", grep_line.strip())
+        if match:
+            file_path = match.group(2)
+            extension = os.path.splitext(file_path)[1]
+            if extension not in [".yaml", ".filter", ".whitelist", ".xml", ".json"]:
+                return file_path
+        return ""
+
+    def case_lines_in_files(file_paths, test_case):
+        case_entries = {}
+        for file_path in file_paths:
+            case_lines = []
+            try:
+                case_lines = subprocess.check_output([
+                        "git", "grep", "--no-color", test_case,
+                        "origin/" + args.branch, "--", file_path]).split("\n")
+            except subprocess.CalledProcessError as e:
+                if e.returncode == 1:
+                    pass  # Test case not found
+                else:
+                    raise
+            if not case_lines:
+                continue
+            case_entries[file_path] = case_lines[:5]
+        return case_entries
+
+    def detect_test_case_file(test_suite, test_case, entries):
+        # Trivial cases.
+        if not entries:
+            print "Found no files containing test suite name {}".format(test_suite)
+            return raw_input("Please enter relative file path manually: ").strip()
+        elif len(entries) == 1:
+            return entries[0]
+
+        # Only one file contained test case name - pick it.
+        case_entries = case_lines_in_files(entries, test_case)
+        if len(case_entries) == 1:
+            return case_entries.keys()[0]
+
+        # Multiple files contain both test suite and test case - let user decide.
+        print "Found multiple files containing both test suite and case."
+        print "Select proper one manually, please."
+        for index, entry in enumerate(entries):
+            print "{}. {}".format(index + 1, entry)
+            for i in case_entries.get(entry, []):
+                print "  >", i.strip()
+        index = ask_index("Please enter the index of proper file", 1, len(entries))
+        return entries[index - 1]
+
+    test_suite, test_case = find_test_info(test_name)
+    test_key = "{}.{}".format(test_suite, test_case)
+    if test_key in test_file_lookup:
+        return test_file_lookup[test_key]
+
+    suite_files = subprocess.check_output([
+                "git", "grep", "--no-color", test_suite,
+                "origin/" + args.branch, "--", ":(icase)**/*test*"]).split("\n")
+    suite_files = list(set(map(extract_file_name, suite_files)))
+    suite_files.remove("")
+    test_file = detect_test_case_file(test_suite, test_case, suite_files)
+    test_file_lookup[test_key] = test_file
+    return test_file
+
+
+def find_brocase_test_owners(brocase_name):
+    print "- NOTE: Scanning yamls for brocase tests is not implemented yet."
+    print "- NOTE: Please find {} tests ownership manually.".format(brocase_name)
+
+
+def read_owners(yaowners_path):
+    EMAIL_REGEX = r"^([a-zA-Z0-9_.+-]+)@yandex-team.ru$"
+    owners = []
+    with open(yaowners_path, "r") as f:
+        for line in f:
+            match = re.search(EMAIL_REGEX, line.strip())
+            if match:
+                owners.append(match.group(1))
+    return "[" + ", ".join(owners) + "]"
+
+
+# Two parameters are required - the name of blacklist ticket to find test owners
+# and the branch to locate configs in.
+parser = argparse.ArgumentParser(description="A script to find test owners")
+parser.add_argument("ticket", help="ticket name (e.g. BROWSER-XXXXXX)")
+parser.add_argument("branch", help="branch that contains blacklists (do not add origin/)")
+args = parser.parse_args()
+
+try:
+    # First of all, update remote branches' state.
+    print "Fetching branches..."
+    subprocess.check_output(["git", "fetch", "origin", args.branch])
+
+    # First of all, let's find all the tests blacklisted for the ticket.
+    failed_tests = subprocess.check_output([
+                "git", "grep", "-h", "--no-color", args.ticket,
+                "origin/" + args.branch, "--",
+                ":/src/build/yandex/ci/configs/platforms/*"]).split("\n")
+
+    # Process them line-by-line.
+    tests = collections.defaultdict(list)
+    for test_name in tests_to_find_owners(failed_tests):
+        print "Processing", test_name, "..."
+        match = re.search(r"\w+\.(brocase-\d+)", test_name)
+        if match:
+            find_brocase_test_owners(match.group(1))
+        else:
+            test_file = find_generic_test_file(test_name)
+            tests[test_file].append(test_name)
+
+    # If nothing has been found, print a message.
+    if not tests:
+        print "No blacklisted tests found for {} in {}.".format(args.ticket, args.branch)
+        print "Please double check branch and ticket names."
+        sys.exit(1)
+
+    # Now let's find owners of files that are keys in tests.
+    owners = collections.defaultdict(list)
+    for test_file in tests:
+        directory = os.path.dirname(test_file)
+        while directory:
+            yaowners_path = os.path.join(directory, "YAOWNERS")
+            if os.path.exists(yaowners_path):
+                owners[read_owners(yaowners_path)].append(test_file)
+                break
+            directory = os.path.dirname(directory)
+
+    # Well, let's time to print ownership info.
+    print ""
+    print "Detected owners of failed tests in {}:".format(args.ticket)
+    for owners_set in sorted(owners.keys()):
+        print "-", owners_set
+        for test_file in sorted(owners[owners_set]):
+            print "  -", test_file
+            for test in sorted(tests[test_file]):
+                print "    -", test
+        print ""
+
+except subprocess.CalledProcessError as e:
+    print "Error: git exited with retcode", e.returncode, "and output:"
+    print e.output

@@ -1,0 +1,88 @@
+#!/usr/bin/python
+
+# This script is to help on automatic branch merges between master/master-next
+# or some releases. Given the source, target and intermediate branches, it
+# searches for commits that merge in intermediate branch as well as current
+# fixes in it. No actual checkout is needed, you may run this script on your
+# working copy without the risk to break it as all commands operate with
+# origin/xxxbranches.
+#
+# Prints colored output to console by default. If you want to store output to
+# file, use --no-color option 
+
+import argparse
+import fnmatch
+import os
+import re
+import subprocess
+
+
+BB_PREFIX = "https://bitbucket.browser.yandex-team.ru/projects/STARDUST/repos/browser/commits/"
+LINK_MESSAGE = "Commit: {}%H%nAuthor: %an%nDate:   %cd%n%n    %s%n".format(BB_PREFIX)
+
+
+# Four parameters are required - the branches and the file to find changes of.
+parser = argparse.ArgumentParser(description="A script to find conflicting changes")
+parser.add_argument("branch_merge", help="branch to resolve conflicts")
+parser.add_argument("branch_from", help="source branch to copy changes from")
+parser.add_argument("branch_to", help="target branch to apply changes to")
+parser.add_argument("file_relpath", help="relative path to file")
+parser.add_argument("--no-color", dest="color_switch", default="--color",
+                    action="store_const", const="--no-color",
+                    help="disable console color tags insertion")
+args = parser.parse_args()
+
+try:
+    # First of all, update remote branches' state.
+    print "Fetching branches..."
+    subprocess.check_output(
+            ["git", "fetch", "origin", args.branch_merge, args.branch_from, args.branch_to])
+
+    # Print changes that are in source branch but absent in target one.
+    # Use only merged ones (-m).
+    print "\n------------- Changes from origin/" + args.branch_from + " -----------------\n" 
+    print subprocess.check_output(
+            ["git", "log", "-p", "-w", "-m", "--first-parent",
+                "--pretty=format:{}".format(LINK_MESSAGE), args.color_switch,
+                "origin/" + args.branch_to + "..origin/" + args.branch_from, "--", args.file_relpath])
+
+    # Similarly, print changes that are in target branch but are absent in source one.
+    # Can be really long for master-next as those are changes since last merge.
+    print "\n------------- Changes from origin/" + args.branch_to + " -----------------\n"
+    print subprocess.check_output(
+            ["git", "log", "-p", "-w", "-m", "--first-parent",
+                "--pretty=format:{}".format(LINK_MESSAGE), args.color_switch,
+                "origin/" + args.branch_from + "..origin/" + args.branch_to, "--", args.file_relpath])
+
+    # Print changes in current branch from Autoresolve commit on.
+    print "\n------------- Changes in merge branch -----------------\n"
+    head_commit = subprocess.check_output(
+            ["git", "log", "-1", "--pretty=format:%H", "origin/" + args.branch_merge])
+    update_commit = subprocess.check_output(
+            ["git", "log", "-1", "--author=teamcity@yandex-team.ru", 
+                "--grep=" + args.branch_from, "--grep=" + args.branch_to, "--all-match",
+                "--pretty=format:%H", "origin/" + args.branch_merge])
+    print subprocess.check_output(
+            ["git", "log", "-p", "-w", "-m", "--first-parent",
+                "--pretty=format:{}".format(LINK_MESSAGE), args.color_switch,
+                update_commit.strip() + ".." + head_commit.strip(), "--", args.file_relpath])
+
+    # Detect where we are.
+    prefix = subprocess.check_output(["git", "rev-parse", "--show-prefix"])
+
+    # Finally, check that file has autoresolve rule and doesn't need to be checked.
+    print "\n------------- File autoresolve rule -------------------\n"
+    rule_name = "none, please check/resolve manually"
+    for line in subprocess.check_output([
+            "git", "grep", "-h", "--no-color", "autoresolve-strategy", 
+            "origin/" + args.branch_merge, "--", ":/*.gitattributes"]).split("\n"):
+        result = re.search(r"^(\S+)\sautoresolve-strategy=(\S+)", line.strip())
+        if result is not None:
+            if fnmatch.fnmatch(os.path.join(prefix.strip(), args.file_relpath), result.group(1)):
+                rule_name = result.group(2)
+    print rule_name
+
+except subprocess.CalledProcessError as e:
+    print "Error: git exited with retcode", e.returncode, "and output:"
+    print e.output
+
