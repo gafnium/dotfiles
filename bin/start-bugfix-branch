@@ -7,8 +7,7 @@ import re
 import argparse
 
 TICKET_ID_PATTERN = re.compile('[A-Z]+-\d+')
-BRANCH_NAME_PATTERN = re.compile('master(-\d+\.\d+\.\d+)\/.+')
-# FEATURE_BRANCH_NAME_PATTERN = re.compile('wp(-\d+\.\d+\.\d+)?\/[A-Z]+-\d+\/\d+')
+BRANCH_NAME_PATTERN = re.compile('master((?P<m>-\d+\.\d+\.\d+)\/.+|-\w+|)')
 
 def get_ci_config_dir():
     top_level_dir = subprocess.run(['git', 'rev-parse', '--show-toplevel'],
@@ -30,13 +29,10 @@ def get_release_version():
     cur_branch = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
         text=True, check=True, capture_output=True).stdout.strip()
     release_version = ''
-    if cur_branch == 'master':
-        release_version = ''
-    else:
-        m = BRANCH_NAME_PATTERN.match(cur_branch)
-        if m is None:
-            raise RuntimeError('Switch to master or release branch')
-        release_version = m.group(1)
+    m = BRANCH_NAME_PATTERN.match(cur_branch)
+    if m is None:
+      raise RuntimeError('Switch to master or release branch')
+    release_version = m.group('m') or ''
 
     return release_version
 

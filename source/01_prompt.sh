@@ -33,7 +33,7 @@ else
     PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
 fi
 
-if [[ "$(which screen)" ]]; then
+if [[ "$(which screen 2>/dev/null)" ]]; then
     if [ "$color_prompt" = yes ]; then
         PS1='\[\033[01;31m\]$(screens_count)\[\033[01;32m\]$PS1'
     else

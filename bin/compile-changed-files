@@ -7,7 +7,7 @@ function compile(){
     return 0
   else
     echo Trying $1 ...
-    DC_DISABLED=1 yakuza -k0 -C out/debug/ "../../$1^" || true
+    DC_DISABLED=1 yakuza -k0 -C out/debug/ "../../$1^^" || true
     processed_files=$processed_files:$1
   fi
 }
