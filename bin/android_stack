@@ -11,7 +11,7 @@ import re
 import subprocess
 
 ARCH_TO_DIR = {
-  'x86' : ('x86', 'i686-linux-android'),
+  'x86' : ('x86_64','x86_64-linux-android'),
   'x64' : ('x86_64','x86_64-linux-android'),
   'arm' : ('arm-linux-androideabi','arm-linux-androideabi'),
   'arm64' : ('aarch64-linux-android', 'aarch64-linux-android')
@@ -30,7 +30,12 @@ def build_tool_paths(target_arch):
     path = os.path.join(path, tools_dir, 'prebuilt','linux-x86_64','bin')
     if not os.access(path, os.R_OK):
         raise ValueError('Cannot find toolchain dir %s' % path)
-    return os.path.join(path, tool_prefix+'-addr2line'), os.path.join(path, tool_prefix+'-c++filt')
+    tools = os.path.join(path, tool_prefix+'-addr2line'), os.path.join(path, tool_prefix+'-c++filt')
+    if not os.access(tools[0], os.X_OK):
+        raise ValueError('Cannot find tool %s' % tools[0])
+    if not os.access(tools[1], os.X_OK):
+        raise ValueError('Cannot find tool %s' % tools[1])
+    return tools
 
 def find_arch(out_dir):
     target_os = None
@@ -65,9 +70,13 @@ def get_function_name(so_name, addr, tools):
 
 
 # 04-04 10:38:48.413  8606  8606 E chromium: #01 0xc550662d /data/app/com.yandex.browser.canary-234e7Pe3yPhBeSX29QgaXA==/lib/arm/libcontent.cr.so+0x00efc62d
-STACK_TRACE_PATTERN = re.compile('(?P<cnt>#\d\d) 0x[0-9a-f]{8} (?P<so>\/.+\.so)\+(?P<addr>0x[0-9a-f]{8})')
+STACK_TRACE_PATTERN1 = re.compile('(?P<cnt>#\d\d) 0x[0-9a-f]{8} (?P<so>\/.+\.so)\+(?P<addr>0x[0-9a-f]{8})')
+# 2020-01-16 13:35:50.420 19318-19318/? A/DEBUG:     #03 pc 0028b108  /data/app/org.chromium.native_test-7FYPv7wUg6W13HFHQ58LEg==/lib/x86/libbase.cr.so
+STACK_TRACE_PATTERN2 = re.compile('(?P<cnt>#\d\d) +pc +(0x)?(?P<addr>[0-9a-f]{8}) +(?P<so>\/.+\.so)')
 def process_line(line, tools, lib_prefix):
-    m = STACK_TRACE_PATTERN.search(line)
+    m = STACK_TRACE_PATTERN1.search(line)
+    if m is None:
+        m = STACK_TRACE_PATTERN2.search(line)
     if m is None:
         return line
     so_name = os.path.join(lib_prefix, posixpath.basename(m.group('so')))

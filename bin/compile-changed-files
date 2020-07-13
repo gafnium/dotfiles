@@ -13,7 +13,7 @@ function compile(){
   fi
 }
 
-file_list=$(git status --untracked-files=no --no-renames --short . | awk '/M[ M]/{ print substr($2,1) }')
+file_list=$(git status --untracked-files=no --porcelain | awk '/M src\// { print substr($2,5) }')
 
 for file in $file_list; do
   echo $file

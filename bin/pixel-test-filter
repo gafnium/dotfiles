@@ -14,7 +14,7 @@ from StringIO import StringIO
 
 DIFF_MARKER = "Pixels do not match!"
 # Actual: data:image/png;base64,iVBOR
-STACK_TRACE_PATTERN = re.compile('] (?P<type>[^:]+): data:image\/png;base64,(?P<data>[0-9A-Za-z\/\+=]+)')
+STACK_TRACE_PATTERN = re.compile('] (?P<type>[^ ]+) pixels[^:]+: data:image\/png;base64,(?P<data>[0-9A-Za-z\/\+=]+)')
 
 def load_pixels(data):
     in_file = StringIO(data)

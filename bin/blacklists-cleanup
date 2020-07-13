@@ -1,0 +1,229 @@
+#!/usr/bin/env python3
+import os
+import sys
+import os.path
+import subprocess
+import re
+import argparse
+import tempfile
+import yaml
+
+
+TEST_FILE_PATTERNS = ['*.cc', '*.cpp', '*.py', '*.java', '*.js', '*.kt', '*.m']
+
+def get_dirs():
+    top_level_dir = subprocess.run(['git', 'rev-parse', '--show-toplevel'],
+        text=True, check=True, capture_output=True).stdout.strip()
+    if top_level_dir == '':
+        raise RuntimeError('Current dir should be inside Git repository')
+    print('Git root:', top_level_dir)
+
+    ci_config_dir = os.path.join(
+        top_level_dir,'src', 'build', 'yandex', 'ci', 'configs','platforms')
+
+    if not os.path.isdir(ci_config_dir):
+        raise RuntimeError('This utility works with browser repository, so {} dir should exists'.format(ci_config_dir))
+
+    print('CI config dir: ', ci_config_dir)
+    return top_level_dir, ci_config_dir
+
+INVALID_SUITES = ['check_autotests', 'chromium_telemetry_tests']
+
+def parse_test_name(test):
+    split_test = test.split('.')
+    if len(split_test) < 2:
+        return None,None
+    suite = split_test[-2]
+    test_name =  split_test[-1]
+    if suite is None or test_name is None:
+        return None,None
+    if suite.count('/') > 1:
+        return None,None
+    suite, _, _ = suite.partition('/')
+    test_name, _, _ = test_name.partition('/')
+    return suite,test_name
+
+def read_yaml_blacklist(ci_file):
+    result = {}
+    yml = None
+    with open(ci_file, 'rt') as f:
+        yml = yaml.safe_load(f)
+    if yml is None:
+        return result
+    for test_section, test_value in yml.items():
+        if test_section in INVALID_SUITES:
+            continue
+        if 'blacklist' not in test_value:
+            continue
+        blacklist = test_value['blacklist']
+        if blacklist is None:
+            continue
+        for test, _ in blacklist.items():
+            suite, test_name = parse_test_name(test)
+            if suite is None:
+                print( "Skipping:",test)
+            else:
+                result.setdefault(suite, set()).add(test_name)
+    return result
+
+def read_yaml_exclustions(exclusions_file):
+    result = {}
+    yml = None
+    with open(exclusions_file, 'rt') as f:
+        yml = yaml.safe_load(f)
+    if yml is None:
+        raise RuntimeError('Cannot read exclusions file {}'.format(exclusions_file))
+    for test_section, test_value in yml.items():
+        if test_section in INVALID_SUITES:
+            continue
+        if 'blacklist' not in test_value:
+            continue
+        blacklist = test_value['blacklist']
+        if blacklist is None:
+            continue
+        for test, _ in blacklist.items():
+            suite, test_name = parse_test_name(test)
+            if suite is None:
+                print( "Skipping:",test)
+            else:
+                result.setdefault(suite, set()).add(test_name)
+    return result
+
+def search_for_suites(top_level_dir, suites):
+    with tempfile.NamedTemporaryFile(mode='w+t', encoding='UTF-8') as pattern_file:
+        pattern_file.writelines(s + '\n' for s in suites)
+        pattern_file.seek(0)
+        params = ['git', 'grep', '--fixed-strings', '--word-regexp',
+                '-f', pattern_file.name,'--'] + TEST_FILE_PATTERNS
+        process = subprocess.run(params, cwd=top_level_dir, capture_output = True, universal_newlines=True)
+
+        result = {}
+        for line in process.stdout.split('\n'):
+            file, _, text = line.partition(':')
+            for suit in suites:
+                if text.find(suit) != -1:
+                    result.setdefault(suit, set()).add(file)
+        return result
+
+def find_unused_suites(blacklist, used_suites):
+    result = []
+    for suite in blacklist:
+        if suite in used_suites:
+            continue
+        print( "Suite not in sources:", suite)
+        for test in blacklist[suite]:
+            result.append(suite + '.' + test)
+    return result
+
+def find_unused_tests(top_level_dir, suite, tests, files):
+    patterns = []
+    for test in tests:
+        patterns.append('-e')
+        patterns.append(test)
+    params = ['git', 'grep', '--fixed-strings' , '--word-regexp'] + patterns + ['--'] + list(files)
+    process = subprocess.run(params, cwd=top_level_dir, capture_output = True, text=True)
+    used_tests = set()
+    for line in process.stdout.split('\n'):
+        file, _, text = line.partition(':')
+        for test in tests:
+            if text.find(test) != -1:
+                used_tests.add(test)
+    result = []
+    for test in tests - used_tests:
+        print('Test not in sources:', suite + '.' + test)
+        result.append(suite + '.' + test)
+
+    return result
+
+def erase_lines_from_file(ci_file, patterns_to_erase):
+    input = None
+    with open(ci_file, 'rt') as f:
+        input = f.readlines()
+
+    affected_tickets = set()
+    output = []
+    lines_erased = 0
+    skip_next_empty = False
+    for l in input:
+        for pattern in patterns_to_erase:
+          if l.find(pattern) != -1:
+              lines_erased += 1
+              _,_,ticket = l.partition(':')
+              affected_tickets.add(ticket.strip())
+              print('Should remove line:', l.strip())
+              skip_next_empty = output[-1].strip() == ''
+              continue
+
+        if not skip_next_empty or l.strip() != '':
+            output.append(l)
+        skip_next_empty = False
+
+    print('Removed {} line{} from {}'.format(
+        lines_erased, 's' if lines_erased != 1 else '', os.path.basename(ci_file)))
+
+    if lines_erased == 0:
+        return
+
+    #with open(ci_file, 'wt') as f:
+    #    f.writelines(output)
+    return affected_tickets
+
+def get_config_files(ci_config_dir):
+    result = []
+    with os.scandir(ci_config_dir) as it:
+        for entry in it:
+            if not entry.name.startswith('.') and entry.name.endswith('.yaml') and entry.is_file():
+                result.append(os.path.join(ci_config_dir, entry.name))
+    return result
+
+def main():
+    parser = argparse.ArgumentParser(
+            description='This utility looks up test blacklists and removes tests that are not exist in sources',
+            usage='%(prog)s')
+    parser.add_argument(
+            '-n',
+            '--dry-run',
+            action='store_const',
+            dest='dry_run',
+            const=True,
+            help='do not actually change anything, just print')
+    parser.add_argument(
+            '-x',
+            '--exclude-list',
+            action='store',
+            dest='exclude_list',
+            help='path to file with tests to exclude from check')            
+    args = parser.parse_args()
+
+    try:
+        top_level_dir, ci_config_dir = get_dirs()
+        affected_tickets = set()
+        exclude_list = {'tests': set(),  }
+        if  args['exclude_list']:
+            exclude_list = read_yaml_exclustions(args['exclude_list'])
+            
+        for file in get_config_files(ci_config_dir):
+            print("Processing", file)
+            patterns_to_erase = []
+            try:
+              blacklist = read_yaml_blacklist(file,  exclude_list)
+            except Exception as  exc:
+                print('Cannot read YAML file {}'.format(file))
+                continue
+            suite_to_files = search_for_suites(top_level_dir, list(blacklist.keys()))
+
+            patterns_to_erase += find_unused_suites(blacklist, frozenset(suite_to_files.keys()))
+            for suite in suite_to_files:
+                patterns_to_erase += find_unused_tests(top_level_dir, suite, blacklist[suite], suite_to_files[suite])
+            affected_tickets |= erase_lines_from_file(file, patterns_to_erase)
+        print('Affected tickets:', '\n'.join(sorted(affected_tickets)))
+
+    except Exception as exc:
+        print(exc)
+        raise
+        return 1
+
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main())
